@@ -54,9 +54,9 @@ This is a single-page React application with no backend requirements. All data i
 - `lastUpdated`: Date object
 
 **Renders:**
-- Application title: "Environment Status Dashboard"
+- Application title: "Coder Environment Status Dashboard"
 - Last updated timestamp in relative format
-- Optional: Refresh button (triggers data reload)
+- Refresh button (triggers data reload)
 
 ---
 
