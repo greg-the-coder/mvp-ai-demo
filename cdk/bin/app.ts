@@ -6,6 +6,7 @@ import { StaticHostingStack } from "../lib/static-hosting-stack";
 const app = new cdk.App();
 
 const envName = app.node.tryGetContext("envName") || "dev";
+const siteAssetsPath = app.node.tryGetContext("siteAssetsPath") as string | undefined;
 
 const envConfig: Record<string, { account?: string; region?: string }> = {
   dev: {
@@ -26,6 +27,7 @@ const config = envConfig[envName] || envConfig.dev;
 
 new StaticHostingStack(app, `EnvStatusDashboard-${envName}`, {
   envName,
+  siteAssetsPath,
   env: {
     account: config.account,
     region: config.region,

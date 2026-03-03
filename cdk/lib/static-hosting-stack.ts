@@ -1,13 +1,17 @@
 import * as cdk from "aws-cdk-lib";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
+import * as path from "path";
 
 export interface StaticHostingStackProps extends cdk.StackProps {
   /** Environment name (e.g. 'dev', 'staging', 'prod') */
   envName: string;
+  /** Path to the built site assets directory (e.g. '../dist'). If provided, assets are deployed to S3. */
+  siteAssetsPath?: string;
 }
 
 export class StaticHostingStack extends cdk.Stack {
@@ -18,7 +22,7 @@ export class StaticHostingStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: StaticHostingStackProps) {
     super(scope, id, props);
 
-    const { envName } = props;
+    const { envName, siteAssetsPath } = props;
 
     // ─── S3 Bucket for Static Site ──────────────────────────────────────────────
     this.siteBucket = new s3.Bucket(this, "SiteBucket", {
@@ -106,6 +110,23 @@ export class StaticHostingStack extends cdk.Stack {
         ],
       })
     );
+
+    // ─── S3 Deployment (when site assets path is provided) ──────────────────────
+    if (siteAssetsPath) {
+      const resolvedAssetsPath = path.resolve(siteAssetsPath);
+      new s3deploy.BucketDeployment(this, "DeploySiteAssets", {
+        sources: [s3deploy.Source.asset(resolvedAssetsPath)],
+        destinationBucket: this.siteBucket,
+        distribution: this.distribution,
+        distributionPaths: ["/*"],
+        cacheControl: [
+          s3deploy.CacheControl.setPublic(),
+          s3deploy.CacheControl.maxAge(cdk.Duration.days(365)),
+          s3deploy.CacheControl.immutable(),
+        ],
+        prune: true,
+      });
+    }
 
     // ─── Outputs ────────────────────────────────────────────────────────────────
     new cdk.CfnOutput(this, "BucketName", {
