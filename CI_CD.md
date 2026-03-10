@@ -46,26 +46,36 @@ Push to main
 - Requires typing "destroy" to confirm
 - Tears down all AWS infrastructure via `cdk destroy`
 
-## Required GitHub Secrets
+## Authentication: AWS OIDC (Recommended)
 
-Configure these in **Settings > Secrets and variables > Actions**:
+The pipeline uses **OpenID Connect (OIDC)** to authenticate with AWS — no static credentials needed.
 
-| Secret                 | Required | Description                     |
-|------------------------|----------|---------------------------------|
-| `AWS_ACCESS_KEY_ID`    | Yes      | IAM access key for deployment   |
-| `AWS_SECRET_ACCESS_KEY`| Yes      | IAM secret key for deployment   |
-| `AWS_REGION`           | No       | AWS region (default: us-east-1) |
+### Required GitHub Secret
 
-### IAM Policy Requirements
+| Secret         | Required | Description                                      |
+|----------------|----------|--------------------------------------------------|
+| `AWS_ROLE_ARN` | Yes      | IAM role ARN for OIDC (e.g., `arn:aws:iam::123456789012:role/GitHubActionsRole-mvp-ai-demo`) |
 
-The deployment IAM user needs permissions for:
+### How It Works
+
+1. GitHub Actions requests an OIDC token from GitHub's identity provider
+2. The token is exchanged with AWS STS for short-lived credentials
+3. The IAM role's trust policy validates the token came from this repository
+4. No long-lived secrets are stored in GitHub
+
+### Setup
+
+See [OIDC_SETUP.md](./OIDC_SETUP.md) for complete AWS OIDC setup instructions.
+
+### IAM Role Requirements
+
+The OIDC IAM role needs permissions for:
 - **S3**: Create/manage buckets, upload objects
 - **CloudFront**: Create/manage distributions
 - **CloudFormation**: Create/update/delete stacks
-- **IAM**: Create roles for CloudFormation (if CDK bootstrapped)
+- **IAM**: Create roles for CloudFormation (CDK bootstrap)
 - **SSM**: Parameter store access (if used by CDK)
-
-Recommended: Use a dedicated IAM user with only the permissions above.
+- **STS**: AssumeRole for CDK execution roles
 
 ## Setup Instructions
 
@@ -76,13 +86,13 @@ cd infra
 npx cdk bootstrap aws://ACCOUNT_ID/us-east-1
 ```
 
-### 2. Configure GitHub Secrets
+### 2. Configure AWS OIDC and GitHub Secret
+
+Follow [OIDC_SETUP.md](./OIDC_SETUP.md), then:
 
 ```bash
-# Using GitHub CLI
-gh secret set AWS_ACCESS_KEY_ID --body "AKIA..."
-gh secret set AWS_SECRET_ACCESS_KEY --body "wJal..."
-gh secret set AWS_REGION --body "us-east-1"
+# Set the IAM role ARN as a GitHub secret
+gh secret set AWS_ROLE_ARN --body "arn:aws:iam::ACCOUNT_ID:role/GitHubActionsRole-mvp-ai-demo"
 ```
 
 ### 3. Create GitHub Environment
@@ -109,8 +119,10 @@ The dashboard build didn't produce output. Check:
 
 ### Deploy Fails: "AWS credentials not configured"
 
-- Verify secrets are set in GitHub repository settings
-- Ensure the IAM user is active and keys are not rotated
+- Verify `AWS_ROLE_ARN` secret is set in GitHub repository settings
+- Ensure the OIDC identity provider exists in AWS IAM
+- Check the IAM role trust policy matches the repository name
+- See [OIDC_SETUP.md](./OIDC_SETUP.md) troubleshooting section
 
 ### Deploy Fails: "CDK bootstrap required"
 
@@ -141,8 +153,7 @@ npm run build
 # 2. Deploy infrastructure
 cd ../infra
 npm ci
-export AWS_ACCESS_KEY_ID="..."
-export AWS_SECRET_ACCESS_KEY="..."
+# Use OIDC role or configure credentials via AWS CLI profile
 export AWS_REGION="us-east-1"
 npx cdk deploy --require-approval never
 
@@ -156,8 +167,9 @@ The pipeline caches `node_modules` via `actions/setup-node@v4`'s built-in npm ca
 
 ## Security Considerations
 
-- AWS credentials are stored as GitHub encrypted secrets, never in code
+- **OIDC authentication** — No static AWS credentials stored; short-lived tokens used per run
 - The deploy job uses a `production` environment for optional protection rules
-- Workflow permissions are set to read-only (`contents: read`)
+- Workflow permissions include `id-token: write` (required for OIDC) and `contents: read`
+- IAM trust policy scoped to `repo:greg-the-coder/mvp-ai-demo:*`
 - The destroy workflow requires manual confirmation
-- Follow least-privilege principle for the deployment IAM user
+- Follow least-privilege principle for the IAM role permissions

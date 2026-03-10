@@ -51,13 +51,13 @@ Push to main → Test → Build → Deploy to AWS
 
 ### Setup
 
-1. **Configure GitHub Secrets** (required for deployment):
+1. **Configure AWS OIDC Authentication** (required for deployment):
 
-   | Secret                 | Description                     |
-   |------------------------|----------------------------------|
-   | `AWS_ACCESS_KEY_ID`    | IAM access key for deployment   |
-   | `AWS_SECRET_ACCESS_KEY`| IAM secret key for deployment   |
-   | `AWS_REGION`           | AWS region (default: us-east-1) |
+   Set up OIDC between GitHub Actions and AWS (see [OIDC_SETUP.md](OIDC_SETUP.md)), then add:
+
+   | Secret         | Description                                  |
+   |----------------|----------------------------------------------|
+   | `AWS_ROLE_ARN` | IAM role ARN for OIDC-based deployment       |
 
 2. **Bootstrap CDK** (one-time):
    ```bash
