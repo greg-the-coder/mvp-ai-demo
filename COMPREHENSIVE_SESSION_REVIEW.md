@@ -407,6 +407,31 @@ mvp-ai-demo/
 - ✅ Security best practices
 - ✅ Comprehensive documentation
 
+### Token Usage & Model Information
+
+**Note:** Token usage metrics from Coder task workspaces are not currently accessible through the Coder MCP tools. The workspace agent logs only contain infrastructure startup information, not AI Bridge execution metrics.
+
+**Limitation Discovered:**
+- Workspace agent logs don't expose token consumption data
+- AI Bridge logs are not accessible via MCP tools after tasks complete
+- Historical metrics are not available for stopped workspaces
+
+**Recommendations for Future Sessions:**
+1. **Capture metrics during execution** - Monitor task logs while tasks are active
+2. **Check Anthropic API Dashboard** - Review API usage by date/time for the session
+3. **Request Coder Admin Access** - Server-level logs may contain aggregated metrics
+4. **Feature Request** - Ask Coder team to add token usage metrics to MCP tools
+
+**Estimated Token Usage (Based on Typical Patterns):**
+- Phase 1 (Frontend): ~50K-100K tokens (complex React app with 7 components)
+- Phase 2 (Infrastructure): ~20K-40K tokens (CDK infrastructure setup)
+- Phase 3 (Deployment): ~30K-50K tokens (integration and deployment)
+- Phase 4 (CI/CD): ~15K-30K tokens (GitHub Actions workflows)
+- Phase 5 (OIDC): ~40K-60K tokens (investigation, implementation, docs)
+- **Estimated Total:** ~155K-280K tokens across all phases
+
+**Model Provider:** Claude Code uses Anthropic's Claude models (likely Claude 3.5 Sonnet based on the template version)
+
 ---
 
 ## 💡 Lessons Learned
