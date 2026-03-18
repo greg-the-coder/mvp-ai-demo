@@ -3,3 +3,7 @@ node_modules/
 test-page.mjs
 test-prod.mjs
 cdk.out/
+dist/
+*.tsbuildinfo
+.env
+.env.local
