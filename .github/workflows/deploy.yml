@@ -1,0 +1,95 @@
+name: Deploy Environment Status Dashboard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # manual trigger
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Don't cancel in-progress deploys
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            dashboard/package-lock.json
+            backend/package-lock.json
+
+      - name: Install & lint frontend
+        working-directory: dashboard
+        run: |
+          npm ci
+          npx eslint src/
+
+      - name: Build frontend
+        working-directory: dashboard
+        run: npm run build
+
+      - name: Test backend
+        working-directory: backend
+        run: npm test
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist/
+          retention-days: 1
+
+  deploy:
+    name: Deploy to AWS
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist/
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Install CDK dependencies
+        working-directory: infra
+        run: npm ci
+
+      - name: CDK Deploy
+        working-directory: infra
+        run: npx cdk deploy EnvDashboardStack --require-approval never --outputs-file cdk-outputs.json
+
+      - name: Print deployment URL
+        working-directory: infra
+        run: |
+          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat cdk-outputs.json | python3 -c "
+          import sys, json
+          outputs = json.load(sys.stdin).get('EnvDashboardStack', {})
+          for k, v in outputs.items():
+              print(f'- **{k}**: {v}')
+          " >> $GITHUB_STEP_SUMMARY
